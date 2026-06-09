@@ -1,0 +1,1489 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LoanLens — Understand Your Loan, Plain & Simple</title>
+  <meta name="description" content="A friendly loan transparency tool. See your EMI, total cost, and red flags — explained without jargon." />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --ink: #0f172a;
+      --ink-soft: #334155;
+      --paper: #f6f7f4;
+      --card: #ffffff;
+      --line: #e3e6df;
+      --moss: #2f6f57;
+      --moss-soft: #e8f2ec;
+      --sky: #2b5d8a;
+      --sky-soft: #e7eff7;
+      --warn: #b45309;
+      --warn-soft: #fef3c7;
+      --danger: #b91c1c;
+      --danger-soft: #fee2e2;
+    }
+    html, body { background: var(--paper); color: var(--ink); }
+    body { font-family: 'Inter', system-ui, -apple-system, sans-serif; font-size: 16px; line-height: 1.55; }
+    .font-display { font-family: 'Fraunces', Georgia, serif; letter-spacing: -0.01em; }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; }
+    .chip { display: inline-flex; align-items: center; gap: .35rem; padding: .15rem .55rem; border-radius: 999px; font-size: .75rem; font-weight: 500; }
+    .tab-btn { padding: .65rem 1rem; border-radius: 10px; color: var(--ink-soft); font-weight: 500; }
+    .tab-btn[aria-selected="true"] { background: var(--ink); color: white; }
+    .tab-btn:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible {
+      outline: 2px solid var(--sky); outline-offset: 2px;
+    }
+    input, select { font-size: 1rem; }
+    .field label { font-size: .85rem; color: var(--ink-soft); font-weight: 500; }
+    .field input, .field select {
+      width: 100%; margin-top: .35rem; padding: .65rem .8rem; border: 1px solid var(--line);
+      border-radius: 10px; background: white; color: var(--ink);
+    }
+    .field input:focus, .field select:focus { border-color: var(--sky); }
+    .field .err { color: var(--danger); font-size: .8rem; margin-top: .25rem; min-height: 1rem; }
+    .stat { background: var(--paper); border: 1px solid var(--line); border-radius: 12px; padding: 1rem; }
+    .stat .label { font-size: .8rem; color: var(--ink-soft); }
+    .stat .value { font-family: 'Fraunces', serif; font-size: 1.5rem; font-weight: 600; }
+    table.amort { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+    table.amort th, table.amort td { padding: .55rem .65rem; text-align: right; border-bottom: 1px solid var(--line); font-size: .9rem; }
+    table.amort th { background: var(--paper); position: sticky; top: 0; color: var(--ink-soft); font-weight: 500; }
+    table.amort td:first-child, table.amort th:first-child { text-align: left; }
+    .alert { border-radius: 12px; padding: 1rem 1.1rem; border: 1px solid; }
+    .alert-red { background: var(--danger-soft); border-color: #fecaca; color: #7f1d1d; }
+    .alert-yellow { background: var(--warn-soft); border-color: #fde68a; color: #78350f; }
+    .alert-green { background: var(--moss-soft); border-color: #bcd9c9; color: #1e4a39; }
+    .alert-blue { background: var(--sky-soft); border-color: #c5d8e9; color: #1f4263; }
+    details > summary { cursor: pointer; list-style: none; }
+    details > summary::-webkit-details-marker { display: none; }
+    .accordion summary { padding: 1rem 1.1rem; display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+    .accordion[open] summary { border-bottom: 1px solid var(--line); }
+    .accordion .body { padding: 1rem 1.1rem 1.2rem; color: var(--ink-soft); }
+    .badge-status { font-size: .75rem; font-weight: 600; padding: .15rem .55rem; border-radius: 999px; }
+    .badge-upcoming { background: #e7eff7; color: #1f4263; }
+    .badge-paid { background: #e8f2ec; color: #1e4a39; }
+    .badge-overdue { background: #fee2e2; color: #7f1d1d; }
+    .num { font-variant-numeric: tabular-nums; }
+    .scroll-shadow { background:
+      linear-gradient(var(--card) 30%, rgba(255,255,255,0)),
+      linear-gradient(rgba(255,255,255,0), var(--card) 70%) 0 100%,
+      radial-gradient(50% 8px at 50% 0, rgba(15,23,42,.08), transparent),
+      radial-gradient(50% 8px at 50% 100%, rgba(15,23,42,.08), transparent) 0 100%;
+      background-repeat: no-repeat;
+      background-size: 100% 40px, 100% 40px, 100% 12px, 100% 12px;
+      background-attachment: local, local, scroll, scroll;
+    }
+    .pill-toggle { display: inline-flex; background: var(--paper); padding: 3px; border-radius: 999px; border: 1px solid var(--line); }
+    .pill-toggle button { padding: .35rem .85rem; border-radius: 999px; font-size: .85rem; color: var(--ink-soft); }
+    .pill-toggle button[aria-pressed="true"] { background: white; color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.05); }
+    .hr-soft { height: 1px; background: var(--line); border: 0; }
+    .skip { position: absolute; left: -9999px; }
+    .skip:focus { left: 1rem; top: 1rem; background: var(--ink); color: white; padding: .5rem .8rem; border-radius: 8px; z-index: 50; }
+    .winner { background: var(--moss-soft); }
+    @media (max-width: 640px) {
+      .stat .value { font-size: 1.25rem; }
+    }
+    @media print {
+      .no-print { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <!-- Header -->
+  <header class="border-b border-[var(--line)] bg-white/70 backdrop-blur sticky top-0 z-30">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
+      <div class="flex items-center gap-2">
+        <div class="w-9 h-9 rounded-xl bg-[var(--moss)] text-white grid place-items-center font-display text-lg" aria-hidden="true">L</div>
+        <div>
+          <div class="font-display text-lg leading-none">LoanLens</div>
+          <div class="text-xs text-[var(--ink-soft)] leading-tight">Loans, in plain language.</div>
+        </div>
+      </div>
+      <div class="hidden sm:flex items-center gap-2 text-xs text-[var(--ink-soft)]">
+        <span class="chip" style="background: var(--moss-soft); color: var(--moss);">Educational tool</span>
+        <span class="chip" style="background: var(--sky-soft); color: var(--sky);">Not a lender</span>
+      </div>
+    </div>
+    <nav class="max-w-6xl mx-auto px-2 sm:px-4 pb-3 overflow-x-auto" aria-label="Sections">
+      <div role="tablist" class="flex gap-1 min-w-max">
+        <button role="tab" class="tab-btn" data-tab="calculator" aria-selected="true">Calculator</button>
+        <button role="tab" class="tab-btn" data-tab="schedule" aria-selected="false">Schedule</button>
+        <button role="tab" class="tab-btn" data-tab="dashboard" aria-selected="false">Dashboard</button>
+        <button role="tab" class="tab-btn" data-tab="explain" aria-selected="false">Understand Terms</button>
+        <button role="tab" class="tab-btn" data-tab="alerts" aria-selected="false">Scam Alerts</button>
+        <button role="tab" class="tab-btn" data-tab="tracker" aria-selected="false">EMI Tracker</button>
+        <button role="tab" class="tab-btn" data-tab="compare" aria-selected="false">Compare Offers</button>
+      </div>
+    </nav>
+  </header>
+
+  <main id="main" class="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-10 space-y-6">
+    <!-- Intro -->
+    <section class="card p-5 sm:p-7" id="intro">
+      <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+        <div class="max-w-2xl">
+          <p class="text-xs uppercase tracking-widest text-[var(--moss)] font-semibold">Made for first-time borrowers</p>
+          <h1 class="font-display text-3xl sm:text-4xl mt-2">See exactly what you'll pay — and why.</h1>
+          <p class="mt-3 text-[var(--ink-soft)]">A sample loan is loaded so you can explore right away. Change any value to see your real numbers. Nothing leaves your browser.</p>
+        </div>
+        <div class="text-sm text-[var(--ink-soft)] flex items-center gap-2">
+          <span aria-hidden="true">🔒</span>
+          <span>100% offline. No sign-up. No data sent.</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tab panels -->
+    <section role="tabpanel" data-panel="calculator" id="panel-calculator"></section>
+    <section role="tabpanel" data-panel="schedule" id="panel-schedule" hidden></section>
+    <section role="tabpanel" data-panel="dashboard" id="panel-dashboard" hidden></section>
+    <section role="tabpanel" data-panel="explain" id="panel-explain" hidden></section>
+    <section role="tabpanel" data-panel="alerts" id="panel-alerts" hidden></section>
+    <section role="tabpanel" data-panel="tracker" id="panel-tracker" hidden></section>
+    <section role="tabpanel" data-panel="compare" id="panel-compare" hidden></section>
+  </main>
+
+  <footer class="border-t border-[var(--line)] bg-white mt-12">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 py-6 text-sm text-[var(--ink-soft)] flex flex-col sm:flex-row justify-between gap-3">
+      <div>LoanLens is an independent education tool — not affiliated with any bank or NBFC.</div>
+      <div>Always verify lender registration with the RBI before signing anything.</div>
+    </div>
+  </footer>
+
+  <script>
+    /* === STATE & HELPERS === */
+    const LOAN_TYPES = {
+      home:      { label: 'Home Loan',      rateMin: 6,  rateMax: 9,  tenureMaxMonths: 360 },
+      personal:  { label: 'Personal Loan',  rateMin: 9,  rateMax: 14, tenureMaxMonths: 84  },
+      vehicle:   { label: 'Vehicle Loan',   rateMin: 8,  rateMax: 12, tenureMaxMonths: 96  },
+      education: { label: 'Education Loan', rateMin: 6,  rateMax: 8,  tenureMaxMonths: 180 },
+      gold:      { label: 'Gold Loan',      rateMin: 10, rateMax: 15, tenureMaxMonths: 36  },
+    };
+
+    const SAMPLE_LOAN = {
+      principal: 2500000,
+      annualRate: 8.5,
+      tenureMonths: 240,
+      loanType: 'home',
+      processingFeePct: 0.5,
+      prepayment: true,
+      startDate: '2026-07-01',
+    };
+
+    const state = {
+      loan: { ...SAMPLE_LOAN },
+      paidMonths: JSON.parse(localStorage.getItem('loanlens.paidMonths') || '[]'),
+      compare: {
+        a: { principal: 1000000, annualRate: 11, tenureMonths: 60, processingFeePct: 1, loanType: 'personal' },
+        b: { principal: 1000000, annualRate: 9.5, tenureMonths: 60, processingFeePct: 2, loanType: 'personal' },
+      },
+    };
+
+    /* Indian numbering formatters using Intl.NumberFormat('en-IN') */
+    const _inr0 = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0, maximumFractionDigits: 0 });
+    const _inr2 = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const fmtINR  = (n) => isFinite(n) ? _inr0.format(n) : '₹0';
+    const fmtINR2 = (n) => isFinite(n) ? _inr2.format(n) : '₹0.00';
+    const fmtINRFull = (n) => fmtINR2(n);
+    const fmtPct = (n, d = 2) => `${(Math.round(n * Math.pow(10, d)) / Math.pow(10, d)).toFixed(d)}%`;
+
+    /* Standard reducing-balance EMI: EMI = P * r * (1+r)^n / ((1+r)^n - 1) */
+    function computeEMI(principal, annualRate, months) {
+      const r = (annualRate / 100) / 12;
+      if (r === 0) return principal / months;
+      const pow = Math.pow(1 + r, months);
+      return principal * r * pow / (pow - 1);
+    }
+
+    /* Build month-by-month amortization at full floating-point precision.
+       The final month's principal is adjusted to bring the closing balance to exactly 0. */
+    function buildAmortization(principal, annualRate, months, startDate) {
+      const r = (annualRate / 100) / 12;
+      const emi = computeEMI(principal, annualRate, months);
+      let balance = principal;
+      const rows = [];
+      const start = new Date(startDate);
+      for (let m = 1; m <= months; m++) {
+        const opening = balance;
+        const interest = opening * r;
+        let principalPaid = emi - interest;
+        let emiThisMonth = emi;
+        let closing = opening - principalPaid;
+        // Last-month adjustment: settle any rounding drift so closing == 0 exactly.
+        if (m === months) {
+          principalPaid = opening;          // pay off whatever is left
+          emiThisMonth = principalPaid + interest;
+          closing = 0;
+        }
+        const dueDate = new Date(start);
+        dueDate.setMonth(dueDate.getMonth() + (m - 1));
+        rows.push({
+          month: m,
+          openingBalance: opening,
+          emi: emiThisMonth,
+          principal: principalPaid,
+          interest: interest,
+          closingBalance: closing,
+          dueDate: dueDate,
+        });
+        balance = closing;
+      }
+      return { emi, rows };
+    }
+
+    function loanSummary(loan) {
+      const { principal, annualRate, tenureMonths } = loan;
+      const { emi, rows } = buildAmortization(principal, annualRate, tenureMonths, loan.startDate || new Date().toISOString().slice(0,10));
+      const totalPayment   = rows.reduce((s, r) => s + r.emi, 0);
+      const totalInterest  = rows.reduce((s, r) => s + r.interest, 0);
+      const totalPrincipal = rows.reduce((s, r) => s + r.principal, 0);
+      const processingFee  = principal * (loan.processingFeePct || 0) / 100;
+      const totalCost      = principal + totalInterest + processingFee;
+      verifyAmortization(principal, rows, totalPrincipal, totalInterest);
+      return { emi, rows, totalPayment, totalInterest, totalPrincipal, processingFee, totalCost };
+    }
+
+    /* Hidden verification — warns in the console if anything drifts. */
+    function verifyAmortization(principal, rows, totalPrincipal, totalInterest) {
+      const EPS = 0.01; // one paisa tolerance
+      let ok = true;
+      for (const r of rows) {
+        const expected = r.openingBalance - r.principal;
+        if (Math.abs(expected - r.closingBalance) > EPS) {
+          console.warn(`[LoanLens] Row ${r.month}: opening - principal != closing`, r);
+          ok = false;
+        }
+      }
+      if (Math.abs(totalPrincipal - principal) > EPS) {
+        console.warn(`[LoanLens] Sum of principal components (${totalPrincipal}) != original principal (${principal})`);
+        ok = false;
+      }
+      const recomputedInterest = rows.reduce((s, r) => s + r.interest, 0);
+      if (Math.abs(recomputedInterest - totalInterest) > EPS) {
+        console.warn(`[LoanLens] Interest mismatch`, { recomputedInterest, totalInterest });
+        ok = false;
+      }
+      if (ok) console.debug('[LoanLens] Amortization verified ✓');
+      return ok;
+    }
+
+    /* ================================================================
+     * RISK SCORE  (0–100, higher = healthier)
+     * ----------------------------------------------------------------
+     * Subtracts points for: above-market rate, high processing fee,
+     * over-extended tenure, and high lifetime interest-to-principal
+     * ratio. All thresholds reference LOAN_TYPES per category.
+     * ================================================================ */
+    function computeRiskScore(loan, summary) {
+      const t = LOAN_TYPES[loan.loanType];
+      let score = 100;
+      const reasons = [];
+
+      // Interest rate
+      if (loan.annualRate > t.rateMax * 1.5) {
+        score -= 35; reasons.push('Interest rate is far above typical market range.');
+      } else if (loan.annualRate > t.rateMax) {
+        score -= 18; reasons.push('Interest rate is above typical market range.');
+      } else if (loan.annualRate >= t.rateMin * 0.85) {
+        // healthy
+      } else {
+        score -= 5; reasons.push('Interest rate is unusually low — double-check it is genuine.');
+      }
+
+      // Processing fee
+      if (loan.processingFeePct > 3) { score -= 20; reasons.push('Processing fee exceeds 3% of principal.'); }
+      else if (loan.processingFeePct > 2) { score -= 10; reasons.push('Processing fee is higher than common (>2%).'); }
+      else if (loan.processingFeePct > 1) { score -= 3; }
+
+      // Tenure
+      if (loan.tenureMonths > t.tenureMaxMonths) {
+        score -= 15; reasons.push('Tenure is longer than typical for this loan type.');
+      } else if (loan.tenureMonths > t.tenureMaxMonths * 0.85) {
+        score -= 5;
+      }
+
+      // Lifetime interest burden
+      const burden = summary.totalInterest / loan.principal;
+      if (burden >= 1.0)      { score -= 25; reasons.push('Total interest will exceed the amount borrowed.'); }
+      else if (burden >= 0.6) { score -= 12; reasons.push('Interest will be more than 60% of the principal.'); }
+      else if (burden >= 0.3) { score -= 4;  }
+
+      score = Math.max(0, Math.min(100, Math.round(score)));
+      let band, color, label;
+      if (score >= 80)      { band = 'healthy';  color = 'green';  label = '🟢 Healthy Loan'; }
+      else if (score >= 50) { band = 'caution';  color = 'yellow'; label = '🟡 Review Carefully'; }
+      else                  { band = 'risky';    color = 'red';    label = '🔴 High Risk'; }
+
+      const explanation = band === 'healthy'
+        ? 'Your loan has a reasonable interest rate and fee structure. The overall borrowing cost is moderate for this loan type.'
+        : band === 'caution'
+          ? 'This loan has one or two terms worth re-examining. Compare with another lender before signing.'
+          : 'Several terms in this loan look unusually expensive. Strongly consider negotiating, or shopping for alternative offers.';
+
+      return { score, band, color, label, explanation, reasons };
+    }
+
+    /* ================================================================
+     * EFFECTIVE COST  (what you actually receive vs what you actually pay)
+     * ================================================================ */
+    function computeEffectiveCost(loan, summary) {
+      return {
+        approved:       loan.principal,
+        processingFee:  summary.processingFee,
+        netReceived:    loan.principal - summary.processingFee,
+        totalEmi:       summary.totalPayment,
+        overallCost:    summary.totalCost, // principal + interest + fee
+      };
+    }
+
+    /* ================================================================
+     * LOAN HEALTH INSIGHTS  (3–5 plain-language observations)
+     * Each insight uses live numbers from the user's loan.
+     * ================================================================ */
+    function buildInsights(loan, summary) {
+      const out = [];
+      const interestShare = summary.totalInterest / summary.totalPayment;
+      if (interestShare > 0.5) {
+        out.push({
+          tone: 'warn',
+          title: 'Interest dominates your repayment',
+          body: `More than half (${(interestShare*100).toFixed(0)}%) of your total repayment goes toward interest, not the amount you borrowed.`,
+        });
+      }
+      if (summary.totalInterest > loan.principal) {
+        out.push({
+          tone: 'warn',
+          title: 'Total interest exceeds principal',
+          body: `Over the life of this loan you will pay ${fmtINR2(summary.totalInterest)} in interest — more than the ${fmtINR2(loan.principal)} you originally borrowed.`,
+        });
+      }
+      // Tenure reduction insight (compare 60-month shorter, if possible)
+      if (loan.tenureMonths > 72) {
+        const shorter = Math.max(12, loan.tenureMonths - 60);
+        const altEmi = computeEMI(loan.principal, loan.annualRate, shorter);
+        const altInterest = altEmi * shorter - loan.principal;
+        const saving = summary.totalInterest - altInterest;
+        if (saving > 0) {
+          out.push({
+            tone: 'info',
+            title: 'Shorter tenure saves a lot',
+            body: `If you shortened the tenure by 5 years (to ${shorter} months), your EMI would rise to ${fmtINR2(altEmi)} but you'd save roughly ${fmtINR2(saving)} in total interest.`,
+          });
+        }
+      }
+      // Prepayment insight: simulate one extra EMI per year for the first 5 years
+      if (loan.prepayment && loan.tenureMonths >= 24) {
+        const yearsToSim = Math.min(5, Math.floor(loan.tenureMonths / 12));
+        const r = (loan.annualRate / 100) / 12;
+        let bal = loan.principal, paidI = 0;
+        const emi = summary.emi;
+        for (let m = 1; m <= loan.tenureMonths && bal > 0.01; m++) {
+          const i = bal * r;
+          let p = Math.min(emi - i, bal);
+          paidI += i;
+          bal -= p;
+          // extra payment at month 12, 24, 36 ... within the first N years
+          if (m <= yearsToSim * 12 && m % 12 === 0) {
+            const extra = Math.min(emi, bal); // one extra EMI per year
+            bal -= extra;
+          }
+        }
+        const saving = summary.totalInterest - paidI;
+        if (saving > 1000) {
+          out.push({
+            tone: 'positive',
+            title: 'Prepayments could save you money',
+            body: `Paying one extra EMI per year for the first ${yearsToSim} years could save you roughly ${fmtINR2(saving)} in interest and finish the loan earlier.`,
+          });
+        }
+      }
+      // Processing-fee impact on effective rate
+      const fee = summary.processingFee;
+      if (fee > 0) {
+        const net = loan.principal - fee;
+        const effRateApprox = ((summary.totalPayment / Math.max(net, 1)) - 1) / (loan.tenureMonths / 12) * 100;
+        if (effRateApprox > loan.annualRate + 0.5) {
+          out.push({
+            tone: 'info',
+            title: 'Fees push your real cost higher',
+            body: `Because the processing fee of ${fmtINR2(fee)} reduces what you actually receive, your effective borrowing cost is closer to ${effRateApprox.toFixed(2)}% per year (vs. the quoted ${loan.annualRate}%).`,
+          });
+        }
+      }
+      // Always include one cost-awareness insight if list is short
+      if (out.length < 3) {
+        out.push({
+          tone: 'info',
+          title: 'The headline rate is not the whole story',
+          body: `Lenders quote an interest rate, but the real cost is total interest plus fees: ${fmtINR2(summary.totalCost - loan.principal)} on top of your ${fmtINR2(loan.principal)} borrowing.`,
+        });
+      }
+      return out.slice(0, 5);
+    }
+
+    /* Short narrative for the "Total Cost" card. Plain language. */
+    function buildNarrative(loan, summary) {
+      const extra = summary.totalPayment - loan.principal;
+      return {
+        l1: `You borrow ${fmtINR2(loan.principal)}.`,
+        l2: `You will pay ${fmtINR2(summary.emi)} every month for ${loan.tenureMonths} months.`,
+        l3: `By the end of the loan you will have paid ${fmtINR2(summary.totalPayment)} in total.`,
+        l4: `That means you pay ${fmtINR2(extra)} more than the amount you originally borrowed.`,
+      };
+    }
+
+    function savePaidMonths() {
+      localStorage.setItem('loanlens.paidMonths', JSON.stringify(state.paidMonths));
+    }
+
+    /* === TAB SWITCHING === */
+    const tabs = document.querySelectorAll('[role="tab"]');
+    tabs.forEach(t => t.addEventListener('click', () => switchTab(t.dataset.tab)));
+    function switchTab(name) {
+      tabs.forEach(t => t.setAttribute('aria-selected', t.dataset.tab === name ? 'true' : 'false'));
+      document.querySelectorAll('[role="tabpanel"]').forEach(p => p.hidden = p.dataset.panel !== name);
+      // Re-render panel content
+      renderPanel(name);
+      // Update charts if dashboard
+      if (name === 'dashboard') setTimeout(renderCharts, 50);
+    }
+
+    /* === PANEL RENDERING === */
+    function renderPanel(name) {
+      const panel = document.getElementById('panel-' + name);
+      if (!panel) return;
+      switch (name) {
+        case 'calculator': renderCalculator(panel); break;
+        case 'schedule':   renderSchedule(panel); break;
+        case 'dashboard':  renderDashboard(panel); break;
+        case 'explain':    renderExplain(panel); break;
+        case 'alerts':     renderAlerts(panel); break;
+        case 'tracker':    renderTracker(panel); break;
+        case 'compare':    renderCompare(panel); break;
+      }
+    }
+
+    /* ====== CALCULATOR PANEL ====== */
+    function renderCalculator(panel) {
+      const L = state.loan;
+      const sum = loanSummary(L);
+      panel.innerHTML = `
+        <div class="grid lg:grid-cols-5 gap-6">
+          <!-- Form -->
+          <form id="loanForm" class="card p-5 sm:p-6 lg:col-span-2 space-y-4" novalidate>
+            <div class="flex items-center justify-between">
+              <h2 class="font-display text-xl">Your loan details</h2>
+              <button type="button" id="resetSample" class="text-sm text-[var(--sky)] hover:underline">Reset sample</button>
+            </div>
+            <div class="field">
+              <label for="principal">Principal amount (₹)</label>
+              <input id="principal" type="number" min="1000" step="1000" value="${L.principal}" inputmode="numeric" aria-describedby="principal-err" />
+              <div class="err" id="principal-err"></div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div class="field">
+                <label for="annualRate">Interest rate (% / year)</label>
+                <input id="annualRate" type="number" min="0.1" max="60" step="0.05" value="${L.annualRate}" />
+                <div class="err" id="annualRate-err"></div>
+              </div>
+              <div class="field">
+                <label for="tenureMonths">Tenure (months)</label>
+                <input id="tenureMonths" type="number" min="1" max="480" step="1" value="${L.tenureMonths}" />
+                <div class="err" id="tenureMonths-err"></div>
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div class="field">
+                <label for="loanType">Loan type</label>
+                <select id="loanType">
+                  ${Object.entries(LOAN_TYPES).map(([k,v]) =>
+                    `<option value="${k}" ${L.loanType===k?'selected':''}>${v.label}</option>`).join('')}
+                </select>
+                <div class="err"></div>
+              </div>
+              <div class="field">
+                <label for="processingFeePct">Processing fee (%)</label>
+                <input id="processingFeePct" type="number" min="0" max="10" step="0.1" value="${L.processingFeePct}" />
+                <div class="err" id="processingFeePct-err"></div>
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3 items-end">
+              <div class="field">
+                <label for="startDate">Loan start date</label>
+                <input id="startDate" type="date" value="${L.startDate}" />
+                <div class="err"></div>
+              </div>
+              <label class="flex items-center gap-2 text-sm pb-3">
+                <input id="prepayment" type="checkbox" ${L.prepayment?'checked':''} class="w-4 h-4 rounded" />
+                Prepayment allowed
+              </label>
+            </div>
+            <div class="text-xs text-[var(--ink-soft)]">
+              Tip: tenure is in months. 240 months = 20 years.
+            </div>
+          </form>
+
+          <!-- Results -->
+          <div class="lg:col-span-3 space-y-5">
+            <div class="card p-5 sm:p-6">
+              <div class="flex items-baseline justify-between gap-3 flex-wrap">
+                <div>
+                  <p class="text-sm text-[var(--ink-soft)]">Your monthly EMI</p>
+                  <p class="font-display text-4xl mt-1" id="emiBig">${fmtINRFull(sum.emi)}</p>
+                  <p class="text-xs text-[var(--ink-soft)] mt-2 max-w-md">All EMI calculations are performed using the standard reducing-balance loan formula used by banks and financial institutions.</p>
+                </div>
+                <span class="chip" style="background: var(--moss-soft); color: var(--moss);" id="loanTypeChip">${LOAN_TYPES[L.loanType].label}</span>
+              </div>
+              <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5">
+                <div class="stat"><div class="label">Total payment</div><div class="value num" id="statTotal">${fmtINR2(sum.totalPayment)}</div></div>
+                <div class="stat"><div class="label">Total interest</div><div class="value num" id="statInterest">${fmtINR2(sum.totalInterest)}</div></div>
+                <div class="stat"><div class="label">Interest vs principal</div><div class="value num" id="statRatio">${fmtPct(sum.totalInterest/L.principal*100,1)}</div></div>
+                <div class="stat"><div class="label">Processing fee</div><div class="value num" id="statFee">${fmtINR2(sum.processingFee)}</div></div>
+              </div>
+            </div>
+
+            <!-- Plain-language narrative card -->
+            <div class="card p-5 sm:p-7" style="background: linear-gradient(135deg, var(--moss-soft), #fff 70%);">
+              <p class="text-xs uppercase tracking-widest font-semibold" style="color: var(--moss)">In plain words</p>
+              <div id="narrative" class="mt-3 space-y-2 font-display text-xl sm:text-2xl leading-snug">
+                ${renderNarrative(L, sum)}
+              </div>
+            </div>
+
+            <!-- Effective Cost + Risk Score side by side -->
+            <div class="grid md:grid-cols-2 gap-5">
+              <div class="card p-5 sm:p-6">
+                <h3 class="font-display text-lg">Effective cost summary</h3>
+                <p class="text-sm text-[var(--ink-soft)] mt-1">Many borrowers don't realise the processing fee reduces the money they actually receive.</p>
+                <dl id="effCost" class="mt-4 divide-y divide-[var(--line)]">
+                  ${renderEffCost(L, sum)}
+                </dl>
+              </div>
+              <div class="card p-5 sm:p-6" id="riskCard">
+                ${renderRisk(L, sum)}
+              </div>
+            </div>
+
+            <!-- Loan Health Insights -->
+            <div class="card p-5 sm:p-6">
+              <h3 class="font-display text-lg">Loan health insights</h3>
+              <p class="text-sm text-[var(--ink-soft)] mt-1">Observations tailored to the numbers you entered.</p>
+              <div id="insightsList" class="mt-4 grid sm:grid-cols-2 gap-3">
+                ${renderInsights(L, sum)}
+              </div>
+            </div>
+
+            <div class="card p-5 sm:p-6">
+              <div class="flex items-center justify-between mb-3 flex-wrap gap-3">
+                <h2 class="font-display text-xl">Where your money goes</h2>
+                <div class="flex items-center gap-2">
+                  <button id="downloadCsv" type="button" class="text-sm px-3 py-1.5 rounded-lg border border-[var(--line)] hover:bg-[var(--paper)]">Download CSV</button>
+                  <button id="downloadPdf" type="button" class="text-sm px-3 py-1.5 rounded-lg border border-[var(--line)] hover:bg-[var(--paper)]">Download PDF</button>
+                </div>
+              </div>
+              <p class="text-sm text-[var(--ink-soft)] mb-3">In the early months most of your EMI pays interest. Over time the principal portion grows.</p>
+              <div class="max-h-[420px] overflow-auto scroll-shadow rounded-lg border border-[var(--line)]">
+                <table class="amort" aria-label="Amortization schedule">
+                  <thead>
+                    <tr>
+                      <th>Month</th>
+                      <th>Opening</th>
+                      <th>EMI</th>
+                      <th>Principal</th>
+                      <th>Interest</th>
+                      <th>Closing</th>
+                    </tr>
+                  </thead>
+                  <tbody id="amortBody">
+                    ${sum.rows.map(r => amortRow(r)).join('')}
+                  </tbody>
+                  <tfoot id="amortFoot">
+                    ${amortFoot(sum)}
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+      // wire up form
+      const form = panel.querySelector('#loanForm');
+      form.addEventListener('input', onFormChange);
+      panel.querySelector('#resetSample').addEventListener('click', () => {
+        state.loan = { ...SAMPLE_LOAN };
+        renderCalculator(panel);
+      });
+      panel.querySelector('#downloadCsv').addEventListener('click', downloadCsv);
+      panel.querySelector('#downloadPdf').addEventListener('click', downloadPdf);
+    }
+
+    function amortRow(r) {
+      return `<tr>
+        <td>${r.month}</td>
+        <td class="num">${fmtINR2(r.openingBalance)}</td>
+        <td class="num">${fmtINR2(r.emi)}</td>
+        <td class="num">${fmtINR2(r.principal)}</td>
+        <td class="num">${fmtINR2(r.interest)}</td>
+        <td class="num">${fmtINR2(r.closingBalance)}</td>
+      </tr>`;
+    }
+
+    function amortFoot(sum) {
+      return `<tr style="background: var(--paper); font-weight: 600;">
+        <td>Total</td>
+        <td class="num">—</td>
+        <td class="num">${fmtINR2(sum.totalPayment)}</td>
+        <td class="num">${fmtINR2(sum.totalPrincipal)}</td>
+        <td class="num">${fmtINR2(sum.totalInterest)}</td>
+        <td class="num">${fmtINR2(0)}</td>
+      </tr>`;
+    }
+
+    function renderNarrative(L, sum) {
+      const n = buildNarrative(L, sum);
+      return `
+        <p>${n.l1}</p>
+        <p>${n.l2}</p>
+        <p>${n.l3}</p>
+        <p style="color: var(--moss);">${n.l4}</p>
+      `;
+    }
+
+    function renderEffCost(L, sum) {
+      const e = computeEffectiveCost(L, sum);
+      const row = (k, v, strong = false) => `
+        <div class="flex items-baseline justify-between py-2">
+          <dt class="text-sm text-[var(--ink-soft)]">${k}</dt>
+          <dd class="num ${strong ? 'font-display text-xl' : 'font-medium'}">${v}</dd>
+        </div>`;
+      return `
+        ${row('Loan approved', fmtINR2(e.approved))}
+        ${row('Processing fee', '− ' + fmtINR2(e.processingFee))}
+        ${row('Net amount you receive', fmtINR2(e.netReceived), true)}
+        ${row('Total EMI payments', fmtINR2(e.totalEmi))}
+        ${row('Overall cost including fees', fmtINR2(e.overallCost), true)}
+      `;
+    }
+
+    function renderRisk(L, sum) {
+      const r = computeRiskScore(L, sum);
+      const bg = r.color === 'green' ? 'var(--moss-soft)'
+              : r.color === 'yellow' ? 'var(--warn-soft)'
+              : 'var(--danger-soft)';
+      const fg = r.color === 'green' ? 'var(--moss)'
+              : r.color === 'yellow' ? 'var(--warn)'
+              : 'var(--danger)';
+      const dashLen = 2 * Math.PI * 42;
+      const dashOff = dashLen * (1 - r.score / 100);
+      return `
+        <h3 class="font-display text-lg">Loan risk score</h3>
+        <p class="text-sm text-[var(--ink-soft)] mt-1">A quick read on how borrower-friendly this loan is.</p>
+        <div class="mt-4 flex items-center gap-5">
+          <svg viewBox="0 0 100 100" width="110" height="110" aria-label="Risk score gauge: ${r.score} out of 100">
+            <circle cx="50" cy="50" r="42" fill="none" stroke="var(--line)" stroke-width="10"/>
+            <circle cx="50" cy="50" r="42" fill="none" stroke="${fg}" stroke-width="10"
+              stroke-dasharray="${dashLen}" stroke-dashoffset="${dashOff}"
+              transform="rotate(-90 50 50)" stroke-linecap="round"/>
+            <text x="50" y="54" text-anchor="middle" font-family="Fraunces, serif" font-size="22" font-weight="700" fill="var(--ink)">${r.score}</text>
+            <text x="50" y="70" text-anchor="middle" font-size="9" fill="var(--ink-soft)">out of 100</text>
+          </svg>
+          <div>
+            <div class="chip" style="background:${bg}; color:${fg};">${r.label}</div>
+            <p class="text-sm text-[var(--ink)] mt-2">${r.explanation}</p>
+          </div>
+        </div>
+        ${r.reasons.length ? `
+          <ul class="mt-4 text-sm text-[var(--ink-soft)] list-disc pl-5 space-y-1">
+            ${r.reasons.map(x => `<li>${x}</li>`).join('')}
+          </ul>` : ''}
+      `;
+    }
+
+    function renderInsights(L, sum) {
+      const ins = buildInsights(L, sum);
+      const cls = t => t === 'warn' ? 'alert-yellow' : t === 'positive' ? 'alert-green' : 'alert-blue';
+      const ico = t => t === 'warn' ? '⚠️' : t === 'positive' ? '✅' : '💡';
+      return ins.map(i => `
+        <div class="alert ${cls(i.tone)}">
+          <div class="flex items-start gap-3">
+            <span aria-hidden="true">${ico(i.tone)}</span>
+            <div>
+              <div class="font-semibold">${i.title}</div>
+              <p class="text-sm mt-1">${i.body}</p>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function onFormChange(e) {
+      const id = e.target.id;
+      let v = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+      const errEl = document.getElementById(id + '-err');
+      let valid = true; let msg = '';
+      if (e.target.type === 'number') {
+        const num = parseFloat(v);
+        if (v === '' || isNaN(num)) { valid = false; msg = 'Enter a number.'; }
+        else if (id === 'principal' && num < 1000) { valid = false; msg = 'Principal must be at least ₹1,000.'; }
+        else if (id === 'annualRate' && (num <= 0 || num > 60)) { valid = false; msg = 'Rate should be between 0.1% and 60%.'; }
+        else if (id === 'tenureMonths' && (num < 1 || num > 480 || !Number.isInteger(num))) { valid = false; msg = 'Tenure must be a whole number of months (1–480).'; }
+        else if (id === 'processingFeePct' && (num < 0 || num > 10)) { valid = false; msg = 'Processing fee usually 0–10%.'; }
+      }
+      if (errEl) errEl.textContent = msg;
+      if (!valid) return;
+      if (id === 'prepayment') state.loan.prepayment = v;
+      else if (id === 'loanType') state.loan.loanType = v;
+      else if (id === 'startDate') state.loan.startDate = v;
+      else state.loan[id] = parseFloat(v);
+      const sum = loanSummary(state.loan);
+      const set = (sel, val) => { const el = document.getElementById(sel); if (el) el.textContent = val; };
+      set('emiBig', fmtINRFull(sum.emi));
+      set('statTotal', fmtINR2(sum.totalPayment));
+      set('statInterest', fmtINR2(sum.totalInterest));
+      set('statRatio', fmtPct(sum.totalInterest/state.loan.principal*100,1));
+      set('statFee', fmtINR2(sum.processingFee));
+      const chip = document.getElementById('loanTypeChip');
+      if (chip) chip.textContent = LOAN_TYPES[state.loan.loanType].label;
+      const body = document.getElementById('amortBody');
+      if (body) body.innerHTML = sum.rows.map(amortRow).join('');
+      const foot = document.getElementById('amortFoot');
+      if (foot) foot.innerHTML = amortFoot(sum);
+      const nar = document.getElementById('narrative');
+      if (nar) nar.innerHTML = renderNarrative(state.loan, sum);
+      const eff = document.getElementById('effCost');
+      if (eff) eff.innerHTML = renderEffCost(state.loan, sum);
+      const risk = document.getElementById('riskCard');
+      if (risk) risk.innerHTML = renderRisk(state.loan, sum);
+      const il = document.getElementById('insightsList');
+      if (il) il.innerHTML = renderInsights(state.loan, sum);
+    }
+
+    function todayStamp() {
+      const d = new Date();
+      return d.toISOString().slice(0, 10);
+    }
+
+    function downloadCsv() {
+      const L = state.loan;
+      const sum = loanSummary(L);
+      const lines = ['Month,Opening Balance,EMI,Principal Paid,Interest Paid,Closing Balance'];
+      for (const r of sum.rows) {
+        lines.push([
+          r.month,
+          r.openingBalance.toFixed(2),
+          r.emi.toFixed(2),
+          r.principal.toFixed(2),
+          r.interest.toFixed(2),
+          r.closingBalance.toFixed(2),
+        ].join(','));
+      }
+      lines.push([
+        'Total', '',
+        sum.totalPayment.toFixed(2),
+        sum.totalPrincipal.toFixed(2),
+        sum.totalInterest.toFixed(2),
+        (0).toFixed(2),
+      ].join(','));
+      const csv = lines.join('\r\n');
+      const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+      triggerDownload(blob, `loan-amortization-${todayStamp()}.csv`);
+    }
+
+    function triggerDownload(blob, filename) {
+      // IE / old Edge
+      if (window.navigator && window.navigator.msSaveOrOpenBlob) {
+        window.navigator.msSaveOrOpenBlob(blob, filename);
+        return;
+      }
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename; a.rel = 'noopener';
+      document.body.appendChild(a); a.click();
+      setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 200);
+    }
+
+    function downloadPdf() {
+      const L = state.loan;
+      const sum = loanSummary(L);
+      const risk = computeRiskScore(L, sum);
+      const eff = computeEffectiveCost(L, sum);
+      const alerts = buildAlerts(L);
+      const insights = buildInsights(L, sum);
+      const generated = new Date().toLocaleString('en-IN', { dateStyle: 'long', timeStyle: 'short' });
+
+      // Inline SVG donut (no canvas needed in print)
+      const total = L.principal + sum.totalInterest;
+      const pPct = (L.principal / total) * 100;
+      const iPct = (sum.totalInterest / total) * 100;
+      const C = 2 * Math.PI * 40;
+      const principalArc = C * (pPct / 100);
+      const donutSvg = `
+        <svg viewBox="0 0 100 100" width="120" height="120">
+          <circle cx="50" cy="50" r="40" fill="none" stroke="#b45309" stroke-width="14"/>
+          <circle cx="50" cy="50" r="40" fill="none" stroke="#2f6f57" stroke-width="14"
+            stroke-dasharray="${principalArc} ${C - principalArc}" transform="rotate(-90 50 50)"/>
+        </svg>`;
+      // Year-end balance bars (simple SVG)
+      const yearEnds = [];
+      for (let i = 0; i < sum.rows.length; i += 12) {
+        const chunk = sum.rows.slice(i, i + 12);
+        yearEnds.push(chunk[chunk.length - 1].closingBalance);
+      }
+      const maxBal = Math.max(L.principal, ...yearEnds, 1);
+      const barW = 18, barGap = 6;
+      const barsSvg = `
+        <svg viewBox="0 0 ${(barW + barGap) * yearEnds.length + 10} 80" width="100%" height="100">
+          ${yearEnds.map((v, i) => {
+            const h = (v / maxBal) * 60;
+            const x = i * (barW + barGap) + 4;
+            const y = 70 - h;
+            return `<rect x="${x}" y="${y}" width="${barW}" height="${h}" fill="#2b5d8a" rx="2"/>
+                    <text x="${x + barW/2}" y="78" text-anchor="middle" font-size="6" fill="#555">Y${i+1}</text>`;
+          }).join('')}
+        </svg>`;
+
+      const rowsHtml = sum.rows.map(r => `
+        <tr>
+          <td>${r.month}</td>
+          <td class="num">${fmtINR2(r.openingBalance)}</td>
+          <td class="num">${fmtINR2(r.emi)}</td>
+          <td class="num">${fmtINR2(r.principal)}</td>
+          <td class="num">${fmtINR2(r.interest)}</td>
+          <td class="num">${fmtINR2(r.closingBalance)}</td>
+        </tr>`).join('');
+
+      const alertsHtml = alerts.filter(a => a.level !== 'green').map(a => {
+        const bg = a.level === 'red' ? '#fee2e2' : a.level === 'yellow' ? '#fef3c7' : '#e7eff7';
+        const fg = a.level === 'red' ? '#7f1d1d' : a.level === 'yellow' ? '#78350f' : '#1f4263';
+        return `<div style="background:${bg}; color:${fg}; padding:8px 10px; border-radius:6px; margin:6px 0;">
+                  <b>${a.title}</b><br><span style="font-size:10.5px">${a.body}</span>
+                </div>`;
+      }).join('');
+
+      const insightsHtml = insights.map(i =>
+        `<li style="margin:4px 0"><b>${i.title}.</b> ${i.body}</li>`
+      ).join('');
+
+      const riskBg = risk.color === 'green' ? '#e8f2ec' : risk.color === 'yellow' ? '#fef3c7' : '#fee2e2';
+      const riskFg = risk.color === 'green' ? '#1e4a39' : risk.color === 'yellow' ? '#78350f' : '#7f1d1d';
+
+      const html = `<!doctype html><html><head><meta charset="utf-8"><title>Loan Transparency Report — ${todayStamp()}</title>
+        <style>
+          @page { size: A4; margin: 16mm; }
+          body { font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif; color: #111; font-size: 12px; }
+          h1 { font-size: 24px; margin: 0; }
+          .sub { color: #555; font-size: 11px; margin-top: 2px; }
+          h2 { font-size: 13px; margin: 16px 0 6px; border-bottom: 1px solid #ccc; padding-bottom: 4px; text-transform: uppercase; letter-spacing: .04em; color: #333; }
+          .row { display: flex; gap: 16px; align-items: center; }
+          .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; }
+          .grid div b { display: inline-block; min-width: 150px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 10.5px; }
+          th, td { padding: 4px 6px; border-bottom: 1px solid #e5e5e5; text-align: right; font-variant-numeric: tabular-nums; }
+          th { background: #f5f5f5; }
+          td:first-child, th:first-child { text-align: left; }
+          tfoot td { font-weight: 700; background: #f5f5f5; }
+          .pill { display:inline-block; padding: 4px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+          .footer { margin-top: 18px; color: #777; font-size: 9.5px; border-top: 1px solid #ddd; padding-top: 8px; }
+          .page-break { page-break-before: always; }
+        </style></head><body>
+        <h1>Loan Transparency Report</h1>
+        <div class="sub">Generated ${generated} · LoanLens — independent education tool</div>
+
+        <h2>Loan Details</h2>
+        <div class="grid">
+          <div><b>Loan type:</b> ${LOAN_TYPES[L.loanType].label}</div>
+          <div><b>Loan start date:</b> ${L.startDate}</div>
+          <div><b>Principal:</b> ${fmtINR2(L.principal)}</div>
+          <div><b>Interest rate:</b> ${fmtPct(L.annualRate, 2)} per year</div>
+          <div><b>Tenure:</b> ${L.tenureMonths} months</div>
+          <div><b>Processing fee:</b> ${fmtPct(L.processingFeePct, 2)} (${fmtINR2(sum.processingFee)})</div>
+        </div>
+
+        <h2>EMI Summary</h2>
+        <div class="grid">
+          <div><b>Monthly EMI:</b> ${fmtINR2(sum.emi)}</div>
+          <div><b>Total interest:</b> ${fmtINR2(sum.totalInterest)}</div>
+          <div><b>Total repayment:</b> ${fmtINR2(sum.totalPayment)}</div>
+          <div><b>Overall cost (with fee):</b> ${fmtINR2(sum.totalCost)}</div>
+          <div><b>Net amount received:</b> ${fmtINR2(eff.netReceived)}</div>
+          <div><b>Interest vs principal:</b> ${fmtPct(sum.totalInterest/L.principal*100, 1)}</div>
+        </div>
+
+        <h2>Risk Score</h2>
+        <div class="row">
+          <div class="pill" style="background:${riskBg}; color:${riskFg};">${risk.label} — ${risk.score}/100</div>
+          <div style="font-size:11px; color:#333;">${risk.explanation}</div>
+        </div>
+        ${risk.reasons.length ? `<ul style="margin:6px 0 0; padding-left:18px; font-size:11px;">${risk.reasons.map(x=>`<li>${x}</li>`).join('')}</ul>` : ''}
+
+        <h2>Visuals</h2>
+        <div class="row">
+          ${donutSvg}
+          <div style="font-size:11px;">
+            <div><span style="display:inline-block;width:10px;height:10px;background:#2f6f57;margin-right:6px"></span>Principal ${fmtINR2(L.principal)} (${pPct.toFixed(1)}%)</div>
+            <div style="margin-top:4px"><span style="display:inline-block;width:10px;height:10px;background:#b45309;margin-right:6px"></span>Interest ${fmtINR2(sum.totalInterest)} (${iPct.toFixed(1)}%)</div>
+          </div>
+        </div>
+        <div style="margin-top:10px"><b style="font-size:11px">Year-end outstanding balance</b>${barsSvg}</div>
+
+        ${insightsHtml ? `<h2>Loan Health Insights</h2><ul style="padding-left:18px; font-size:11px;">${insightsHtml}</ul>` : ''}
+        ${alertsHtml ? `<h2>Scam Alerts &amp; Warnings</h2>${alertsHtml}` : ''}
+
+        <div class="page-break"></div>
+        <h2>Full Amortization Schedule</h2>
+        <table>
+          <thead><tr><th>Month</th><th>Opening Balance</th><th>EMI</th><th>Principal Paid</th><th>Interest Paid</th><th>Closing Balance</th></tr></thead>
+          <tbody>${rowsHtml}</tbody>
+          <tfoot><tr>
+            <td>Total</td><td>—</td>
+            <td>${fmtINR2(sum.totalPayment)}</td>
+            <td>${fmtINR2(sum.totalPrincipal)}</td>
+            <td>${fmtINR2(sum.totalInterest)}</td>
+            <td>${fmtINR2(0)}</td>
+          </tr></tfoot>
+        </table>
+
+        <div class="footer">All EMI calculations use the standard reducing-balance loan formula used by banks and financial institutions. LoanLens is an independent education tool and not affiliated with any lender. Always verify lender registration with the RBI before signing.</div>
+        <script>window.addEventListener('load', () => setTimeout(() => window.print(), 300));<\/script>
+        </body></html>`;
+      const w = window.open('', '_blank');
+      if (!w) {
+        const blob = new Blob([html], { type: 'text/html' });
+        triggerDownload(blob, `loan-transparency-report-${todayStamp()}.html`);
+        return;
+      }
+      w.document.open();
+      w.document.write(html);
+      w.document.close();
+    }
+
+    /* ====== SCHEDULE PANEL (simplified amortization view, jumpable) ====== */
+    function renderSchedule(panel) {
+      const L = state.loan;
+      const sum = loanSummary(L);
+      // year-wise summary
+      const years = [];
+      for (let i = 0; i < sum.rows.length; i += 12) {
+        const chunk = sum.rows.slice(i, i + 12);
+        const yearStart = chunk[0].dueDate.getFullYear();
+        years.push({
+          year: yearStart,
+          principal: chunk.reduce((s,r)=>s+r.principal,0),
+          interest: chunk.reduce((s,r)=>s+r.interest,0),
+          closing: chunk[chunk.length-1].closingBalance,
+        });
+      }
+      panel.innerHTML = `
+        <div class="card p-5 sm:p-7">
+          <h2 class="font-display text-2xl">Year-by-year breakdown</h2>
+          <p class="text-[var(--ink-soft)] mt-1">A condensed view of your repayment by calendar year.</p>
+          <div class="overflow-auto mt-5 rounded-lg border border-[var(--line)]">
+            <table class="amort">
+              <thead><tr><th>Year</th><th>Principal paid</th><th>Interest paid</th><th>Balance at year end</th></tr></thead>
+              <tbody>
+                ${years.map(y => `
+                  <tr>
+                    <td>${y.year}</td>
+                    <td class="num">${fmtINR(y.principal)}</td>
+                    <td class="num">${fmtINR(y.interest)}</td>
+                    <td class="num">${fmtINR(y.closing)}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+
+    /* ====== DASHBOARD PANEL ====== */
+    function renderDashboard(panel) {
+      const L = state.loan;
+      const sum = loanSummary(L);
+      const total = L.principal + sum.totalInterest;
+      const pPct = (L.principal / total) * 100;
+      const iPct = (sum.totalInterest / total) * 100;
+      panel.innerHTML = `
+        <div class="grid lg:grid-cols-3 gap-6">
+          <div class="card p-5 sm:p-6 lg:col-span-1">
+            <h2 class="font-display text-xl">Principal vs interest</h2>
+            <p class="text-sm text-[var(--ink-soft)] mt-1">Of every rupee you'll pay, here's how much is interest.</p>
+            <div class="mt-4" style="height: 240px; position: relative;">
+              <canvas id="donutChart" aria-label="Donut chart showing principal vs interest split"></canvas>
+            </div>
+            <ul class="mt-4 space-y-2 text-sm" aria-label="Legend">
+              <li class="flex items-center justify-between gap-3">
+                <span class="flex items-center gap-2"><span class="inline-block w-3 h-3 rounded-sm" style="background:#2f6f57"></span> Principal</span>
+                <span class="num"><strong>${fmtINR2(L.principal)}</strong> <span class="text-[var(--ink-soft)]">(${pPct.toFixed(1)}%)</span></span>
+              </li>
+              <li class="flex items-center justify-between gap-3">
+                <span class="flex items-center gap-2"><span class="inline-block w-3 h-3 rounded-sm" style="background:#b45309"></span> Interest</span>
+                <span class="num"><strong>${fmtINR2(sum.totalInterest)}</strong> <span class="text-[var(--ink-soft)]">(${iPct.toFixed(1)}%)</span></span>
+              </li>
+            </ul>
+          </div>
+          <div class="card p-5 sm:p-6 lg:col-span-2">
+            <h2 class="font-display text-xl">Balance reduction by year</h2>
+            <p class="text-sm text-[var(--ink-soft)] mt-1">Watch your outstanding balance shrink over time.</p>
+            <div class="mt-4" style="height: 320px; position: relative;">
+              <canvas id="barChart" aria-label="Bar chart showing yearly balance reduction"></canvas>
+            </div>
+          </div>
+          <div class="card p-5 sm:p-6 lg:col-span-3" style="background: linear-gradient(135deg, var(--moss-soft), var(--sky-soft));">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div>
+                <p class="text-xs uppercase tracking-widest font-semibold" style="color: var(--moss)">Total cost of loan</p>
+                <p class="font-display text-3xl sm:text-4xl mt-1 num">${fmtINR2(sum.totalCost)}</p>
+                <p class="text-sm text-[var(--ink-soft)] mt-1">Principal ${fmtINR2(L.principal)} + Interest ${fmtINR2(sum.totalInterest)} + Fee ${fmtINR2(sum.processingFee)}</p>
+              </div>
+              <div class="text-sm text-[var(--ink-soft)] max-w-sm">
+                Over ${L.tenureMonths} months, you'll pay ${fmtPct(sum.totalInterest/L.principal*100,0)} extra on top of what you borrowed.
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderCharts() {
+      const L = state.loan;
+      const sum = loanSummary(L);
+      const donutEl = document.getElementById('donutChart');
+      const barEl = document.getElementById('barChart');
+      if (donutEl) {
+        if (window._donut) window._donut.destroy();
+        const total = L.principal + sum.totalInterest;
+        const descriptions = {
+          'Principal': 'the money you actually borrowed',
+          'Interest': 'the price the lender charges over the tenure',
+        };
+        window._donut = new Chart(donutEl, {
+          type: 'doughnut',
+          data: {
+            labels: ['Principal', 'Interest'],
+            datasets: [{
+              data: [L.principal, sum.totalInterest],
+              backgroundColor: ['#2f6f57', '#b45309'],
+              borderWidth: 0,
+            }],
+          },
+          options: {
+            cutout: '65%',
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                backgroundColor: '#0f172a',
+                padding: 12,
+                callbacks: {
+                  title: (items) => items[0].label,
+                  label: (c) => {
+                    const pct = (c.parsed / total) * 100;
+                    return [fmtINR2(c.parsed), `${pct.toFixed(1)}% of total repayment`, descriptions[c.label] || ''];
+                  },
+                },
+              },
+            },
+          },
+        });
+      }
+      if (barEl) {
+        const years = []; const labels = [];
+        for (let i = 0; i < sum.rows.length; i += 12) {
+          const chunk = sum.rows.slice(i, i + 12);
+          const last = chunk[chunk.length - 1];
+          labels.push('Year ' + (Math.floor(i/12)+1));
+          years.push(last.closingBalance);
+        }
+        if (window._bar) window._bar.destroy();
+        window._bar = new Chart(barEl, {
+          type: 'bar',
+          data: {
+            labels,
+            datasets: [{
+              label: 'Outstanding balance',
+              data: years,
+              backgroundColor: '#2b5d8a',
+              borderRadius: 6,
+            }],
+          },
+          options: {
+            scales: { y: { ticks: { callback: v => '₹' + (v/100000).toFixed(1) + 'L' } } },
+            plugins: {
+              legend: { display: false },
+              tooltip: { callbacks: { label: c => fmtINR2(c.parsed.y) } },
+            },
+          },
+        });
+      }
+    }
+
+    /* ====== EXPLAIN PANEL ====== */
+    function renderExplain(panel) {
+      const L = state.loan;
+      const sum = loanSummary(L);
+      const concepts = [
+        { t: 'Principal', d: `The actual money you borrow. In your case, ${fmtINR(L.principal)}. Interest gets calculated on this amount (and the unpaid portion as you repay).` },
+        { t: 'Interest Rate', d: `The lender's price for letting you use their money. Your rate of ${fmtPct(L.annualRate,2)} per year is split into monthly chunks behind the scenes.` },
+        { t: 'EMI (Equated Monthly Instalment)', d: `One fixed amount you pay every month — ${fmtINRFull(sum.emi)} for you. Part of it goes to interest, part chips away at the principal.` },
+        { t: 'Tenure', d: `How long you'll keep paying. You picked ${L.tenureMonths} months (${(L.tenureMonths/12).toFixed(1)} years). Longer tenure = smaller EMI, but much more interest overall.` },
+        { t: 'Processing Fee', d: `A one-time charge to set up the loan. Yours is ${fmtPct(L.processingFeePct,2)}, which equals ${fmtINR(sum.processingFee)}. Often deducted from the loan amount before it reaches you.` },
+        { t: 'Prepayment', d: `Paying extra (or paying off early) to reduce interest. You have this ${L.prepayment ? 'turned on' : 'turned off'}. Some lenders charge a small penalty — always ask.` },
+        { t: 'Amortization', d: `Just a fancy word for "the schedule of how each EMI is split between interest and principal." Early on, most of it is interest. That flips later.` },
+        { t: 'Total Interest', d: `What you pay above and beyond the principal. For your loan: ${fmtINR(sum.totalInterest)}. That's ${fmtPct(sum.totalInterest/L.principal*100,0)} of what you borrowed.` },
+        { t: 'Total Cost of Loan', d: `Principal + total interest + processing fee. Yours adds up to ${fmtINR(sum.totalCost)}. This is the real number to remember.` },
+        { t: 'Foreclosure', d: `Closing the loan early by paying the remaining balance in one go. Frees you from future EMIs and saves a lot of interest if done early.` },
+      ];
+      panel.innerHTML = `
+        <div class="card p-5 sm:p-7">
+          <h2 class="font-display text-2xl">Loan terms, in plain language</h2>
+          <p class="text-[var(--ink-soft)] mt-1">Each definition uses your current loan numbers so it actually means something.</p>
+          <div class="mt-5 divide-y divide-[var(--line)] border border-[var(--line)] rounded-xl overflow-hidden">
+            ${concepts.map((c, i) => `
+              <details class="accordion" ${i===0?'open':''}>
+                <summary>
+                  <span class="font-medium">${c.t}</span>
+                  <span aria-hidden="true" class="text-[var(--ink-soft)]">+</span>
+                </summary>
+                <div class="body">${c.d}</div>
+              </details>
+            `).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    /* ================================================================
+     * SCAM / WARNING ALERTS — extended checks
+     * ================================================================ */
+    function buildAlerts(loan) {
+      const t = LOAN_TYPES[loan.loanType];
+      const sum = loanSummary(loan);
+      const alerts = [];
+      // Rate check
+      if (loan.annualRate > t.rateMax + 4) {
+        alerts.push({ level: 'red', title: 'Interest rate above market norms',
+          body: `Your rate of ${fmtPct(loan.annualRate,2)} is well above the typical range for ${t.label.toLowerCase()}s (${t.rateMin}–${t.rateMax}%). This is a serious red flag — compare with at least two other lenders before signing.` });
+      } else if (loan.annualRate > t.rateMax) {
+        alerts.push({ level: 'yellow', title: 'Interest rate above typical range',
+          body: `${fmtPct(loan.annualRate,2)} is above the usual ${t.rateMin}–${t.rateMax}% range for ${t.label.toLowerCase()}s. Ask the lender to justify it, and shop around.` });
+      } else if (loan.annualRate < t.rateMin * 0.6) {
+        alerts.push({ level: 'yellow', title: 'Interest rate looks too good',
+          body: `${fmtPct(loan.annualRate,2)} is far below the typical ${t.rateMin}–${t.rateMax}% range. Double-check it's a genuine offer — scammers often use unrealistic rates as bait.` });
+      } else {
+        alerts.push({ level: 'green', title: 'Interest rate is in a normal range',
+          body: `${fmtPct(loan.annualRate,2)} fits within the usual ${t.rateMin}–${t.rateMax}% band for ${t.label.toLowerCase()}s.` });
+      }
+      // Processing fee — absolute %
+      if (loan.processingFeePct > 3) {
+        alerts.push({ level: 'red', title: 'Processing fee greater than 3%',
+          body: `${fmtPct(loan.processingFeePct,2)} (${fmtINR2(loan.principal * loan.processingFeePct / 100)}) is steep. Most legitimate lenders charge 0.5–2%. Demand a written breakdown of every charge.` });
+      } else if (loan.processingFeePct > 2) {
+        alerts.push({ level: 'yellow', title: 'Processing fee is on the higher side',
+          body: `${fmtPct(loan.processingFeePct,2)} is above the typical 0.5–2% range. Worth negotiating or comparing with another lender.` });
+      }
+      // Processing fee — relative to loan amount in rupees
+      if (sum.processingFee > 25000 && (sum.processingFee / loan.principal) > 0.015) {
+        alerts.push({ level: 'yellow', title: 'Large fee relative to loan amount',
+          body: `The ${fmtINR2(sum.processingFee)} processing fee is a sizeable chunk taken upfront. It reduces what actually reaches your account.` });
+      }
+      // Total interest exceeds principal
+      if (sum.totalInterest > loan.principal) {
+        alerts.push({ level: 'red', title: 'Total interest exceeds principal',
+          body: `Over the life of this loan you will pay ${fmtINR2(sum.totalInterest)} in interest — more than the ${fmtINR2(loan.principal)} you originally borrowed.` });
+      }
+      // Tenure — absolute against type
+      if (loan.tenureMonths > t.tenureMaxMonths) {
+        alerts.push({ level: 'yellow', title: 'Very long tenure',
+          body: `${loan.tenureMonths} months is longer than typical for a ${t.label.toLowerCase()} (usually up to ${t.tenureMaxMonths} months). Longer tenure means a smaller EMI but dramatically more total interest.` });
+      }
+      // High borrowing cost percentage
+      const costPct = ((sum.totalCost - loan.principal) / loan.principal) * 100;
+      if (costPct > 75) {
+        alerts.push({ level: 'yellow', title: 'High overall borrowing cost',
+          body: `Your total interest + fees come to ${costPct.toFixed(0)}% of what you borrow. Most healthy loans stay under 40–60% extra.` });
+      }
+      // Always-on educational reminders
+      alerts.push({ level: 'blue', title: 'Always verify the lender with RBI',
+        body: `Before signing anything, check that the lender is registered with the Reserve Bank of India. Search the RBI website for the company's name. If they can't show proper registration documents, walk away.` });
+      alerts.push({ level: 'blue', title: 'Common scam patterns to avoid',
+        body: `Never pay an "advance fee" to receive a loan. Real lenders deduct fees from the disbursed amount or charge them later. Never share OTPs. Watch out for pressure to sign immediately.` });
+      return alerts;
+    }
+    function renderAlerts(panel) {
+      const alerts = buildAlerts(state.loan);
+      const iconFor = (l) => l === 'red' ? '🔴' : l === 'yellow' ? '🟡' : l === 'green' ? '🟢' : '🔵';
+      const classFor = (l) => `alert alert-${l}`;
+      panel.innerHTML = `
+        <div class="space-y-5">
+          <div class="card p-5 sm:p-7">
+            <h2 class="font-display text-2xl">Red-flag check for your loan</h2>
+            <p class="text-[var(--ink-soft)] mt-1">Based on the numbers you entered, here's what stands out. We err on the side of warning you.</p>
+            <div class="mt-5 grid gap-3">
+              ${alerts.map(a => `
+                <div class="${classFor(a.level)}">
+                  <div class="flex gap-3 items-start">
+                    <span aria-hidden="true" class="text-lg leading-none">${iconFor(a.level)}</span>
+                    <div>
+                      <div class="font-semibold">${a.title}</div>
+                      <p class="mt-1 text-sm">${a.body}</p>
+                    </div>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+          <div class="card p-5 sm:p-6 text-sm text-[var(--ink-soft)]">
+            <strong class="text-[var(--ink)]">A note on these alerts:</strong> Ranges are based on typical published Indian market rates and may shift over time. They are a starting point for caution, not legal or financial advice.
+          </div>
+        </div>
+      `;
+    }
+
+    /* ====== TRACKER PANEL ====== */
+    function renderTracker(panel) {
+      const L = state.loan;
+      const sum = loanSummary(L);
+      const today = new Date();
+      // Show next 6 unpaid months from today (or last 6 if loan still going)
+      const upcoming = [];
+      for (const row of sum.rows) {
+        if (upcoming.length >= 6) break;
+        upcoming.push(row);
+      }
+      // determine first upcoming relative to today
+      let startIdx = sum.rows.findIndex(r => r.dueDate >= today);
+      if (startIdx < 0) startIdx = sum.rows.length - 6;
+      const visible = sum.rows.slice(Math.max(0, startIdx - 0), Math.max(6, startIdx + 6)).slice(0, 6);
+
+      const statusOf = (row) => {
+        if (state.paidMonths.includes(row.month)) return 'paid';
+        if (row.dueDate < today) return 'overdue';
+        return 'upcoming';
+      };
+
+      const totalPaid = state.paidMonths.length;
+      const remaining = L.tenureMonths - totalPaid;
+
+      panel.innerHTML = `
+        <div class="grid lg:grid-cols-3 gap-6">
+          <div class="card p-5 sm:p-6 lg:col-span-2">
+            <h2 class="font-display text-2xl">Next 6 EMI dates</h2>
+            <p class="text-[var(--ink-soft)] mt-1">Mark each one paid as you go. We'll track your progress.</p>
+            <ul class="mt-5 divide-y divide-[var(--line)] border border-[var(--line)] rounded-xl overflow-hidden">
+              ${visible.map(row => {
+                const s = statusOf(row);
+                const isPaid = s === 'paid';
+                return `
+                <li class="flex items-center justify-between gap-3 p-3 sm:p-4">
+                  <div>
+                    <div class="font-medium">Month ${row.month}</div>
+                    <div class="text-sm text-[var(--ink-soft)]">${row.dueDate.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })}</div>
+                  </div>
+                  <div class="text-right flex items-center gap-3">
+                    <div>
+                      <div class="num font-medium">${fmtINR(row.emi)}</div>
+                      <div><span class="badge-status badge-${s}">${s.charAt(0).toUpperCase()+s.slice(1)}</span></div>
+                    </div>
+                    <button data-month="${row.month}" class="mark-paid text-sm px-3 py-1.5 rounded-lg border border-[var(--line)] hover:bg-[var(--paper)]">
+                      ${isPaid ? 'Undo' : 'Mark paid'}
+                    </button>
+                  </div>
+                </li>`;
+              }).join('')}
+            </ul>
+            <div class="mt-4">
+              <label class="flex items-center gap-2 text-sm">
+                <input type="checkbox" id="notifToggle" class="w-4 h-4" />
+                Show browser reminders for upcoming EMIs (asks permission)
+              </label>
+            </div>
+          </div>
+          <aside class="card p-5 sm:p-6 space-y-4">
+            <h2 class="font-display text-xl">Your progress</h2>
+            <div class="stat">
+              <div class="label">EMIs marked paid</div>
+              <div class="value">${totalPaid} / ${L.tenureMonths}</div>
+            </div>
+            <div class="w-full bg-[var(--paper)] rounded-full h-2.5 border border-[var(--line)]">
+              <div class="h-full rounded-full" style="background: var(--moss); width: ${Math.min(100, (totalPaid/L.tenureMonths)*100)}%"></div>
+            </div>
+            <div class="stat">
+              <div class="label">Estimated remaining</div>
+              <div class="value num">${fmtINR(remaining * sum.emi)}</div>
+            </div>
+            <p class="text-xs text-[var(--ink-soft)]">Reminders are local to your browser. If you clear site data, your paid history is reset.</p>
+          </aside>
+        </div>
+      `;
+
+      panel.querySelectorAll('.mark-paid').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const m = parseInt(btn.dataset.month, 10);
+          const idx = state.paidMonths.indexOf(m);
+          if (idx >= 0) state.paidMonths.splice(idx, 1);
+          else state.paidMonths.push(m);
+          savePaidMonths();
+          renderTracker(panel);
+        });
+      });
+      const tog = panel.querySelector('#notifToggle');
+      tog.addEventListener('change', async () => {
+        if (tog.checked && 'Notification' in window) {
+          const perm = await Notification.requestPermission();
+          if (perm === 'granted') {
+            new Notification('Reminders enabled', { body: 'We will remind you about your next EMI date when you visit LoanLens.' });
+            // Light-touch: surface the nearest upcoming one
+            const next = sum.rows.find(r => !state.paidMonths.includes(r.month) && r.dueDate >= new Date());
+            if (next) {
+              setTimeout(() => {
+                new Notification('Upcoming EMI', { body: `${fmtINR(next.emi)} due on ${next.dueDate.toLocaleDateString('en-IN')}` });
+              }, 1500);
+            }
+          } else {
+            tog.checked = false;
+          }
+        }
+      });
+    }
+
+    /* ====== COMPARE PANEL ====== */
+    function renderCompare(panel) {
+      const A = state.compare.a, B = state.compare.b;
+      const sA = loanSummary({ ...A, startDate: '2026-01-01' });
+      const sB = loanSummary({ ...B, startDate: '2026-01-01' });
+
+      const cmpRow = (label, a, b, fmt = fmtINR2, lowerWins = true) => {
+        const winA = lowerWins ? a < b : a > b;
+        const winB = lowerWins ? b < a : b > a;
+        return `<tr>
+          <td class="text-left">${label}</td>
+          <td class="num ${winA?'winner':''}">${fmt(a)}</td>
+          <td class="num ${winB?'winner':''}">${fmt(b)}</td>
+        </tr>`;
+      };
+
+      const diff = sA.totalCost - sB.totalCost;
+      const rec = diff === 0
+        ? 'Both loans cost the same overall.'
+        : (diff > 0
+            ? `Loan B saves you ${fmtINR(diff)} overall.`
+            : `Loan A saves you ${fmtINR(-diff)} overall.`);
+
+      panel.innerHTML = `
+        <div class="space-y-6">
+          <div class="card p-5 sm:p-7">
+            <h2 class="font-display text-2xl">Compare two loan offers</h2>
+            <p class="text-[var(--ink-soft)] mt-1">Enter the details of two offers side by side. We'll do the math and tell you which is cheaper overall.</p>
+            <div class="grid md:grid-cols-2 gap-5 mt-5">
+              ${compareForm('a', A)}
+              ${compareForm('b', B)}
+            </div>
+          </div>
+
+          <div class="card p-5 sm:p-7">
+            <h2 class="font-display text-xl">Side-by-side</h2>
+            <div class="grid sm:grid-cols-2 gap-4 mt-4">
+              ${costBreakdownCard('Loan A', A, sA, 'sky')}
+              ${costBreakdownCard('Loan B', B, sB, 'moss')}
+            </div>
+            <div class="overflow-x-auto mt-5 rounded-lg border border-[var(--line)]">
+              <table class="amort min-w-[480px]">
+                <thead>
+                  <tr><th class="text-left">Metric</th><th>Loan A</th><th>Loan B</th></tr>
+                </thead>
+                <tbody>
+                  ${cmpRow('Monthly EMI', sA.emi, sB.emi, fmtINR2)}
+                  ${cmpRow('Principal', A.principal, B.principal, fmtINR2, false)}
+                  ${cmpRow('Total interest', sA.totalInterest, sB.totalInterest, fmtINR2)}
+                  ${cmpRow('Processing fee', sA.processingFee, sB.processingFee, fmtINR2)}
+                  ${cmpRow('Total cost (P + I + Fee)', sA.totalCost, sB.totalCost, fmtINR2)}
+                  ${cmpRow('Tenure (months)', A.tenureMonths, B.tenureMonths, v=>v+'')}
+                  ${cmpRow('Interest rate', A.annualRate, B.annualRate, v=>fmtPct(v,2))}
+                </tbody>
+              </table>
+            </div>
+            <div class="alert alert-green mt-5">
+              <strong>Our take:</strong> ${rec} Lower EMI: ${sA.emi < sB.emi ? 'Loan A' : (sA.emi > sB.emi ? 'Loan B' : 'tied')}. Lower total interest: ${sA.totalInterest < sB.totalInterest ? 'Loan A' : (sA.totalInterest > sB.totalInterest ? 'Loan B' : 'tied')}.
+            </div>
+            <p class="text-xs text-[var(--ink-soft)] mt-3">Total cost includes principal, every rupee of interest, and the one-time processing fee. A lower EMI isn't always cheaper — longer tenure usually means more interest overall.</p>
+          </div>
+        </div>
+      `;
+
+      panel.querySelectorAll('[data-cmp]').forEach(inp => {
+        inp.addEventListener('input', () => {
+          const [side, key] = inp.dataset.cmp.split('.');
+          let val = inp.value;
+          if (inp.type === 'number') val = parseFloat(val) || 0;
+          state.compare[side][key] = val;
+          renderCompare(panel);
+          // refocus the field that triggered re-render
+          const next = panel.querySelector(`[data-cmp="${side}.${key}"]`);
+          if (next) { next.focus(); next.setSelectionRange?.(next.value.length, next.value.length); }
+        });
+      });
+    }
+
+    function compareForm(side, L) {
+      const title = side === 'a' ? 'Loan A' : 'Loan B';
+      const color = side === 'a' ? 'var(--sky)' : 'var(--moss)';
+      return `
+        <div class="rounded-xl border border-[var(--line)] p-4">
+          <div class="flex items-center gap-2 mb-3">
+            <span class="w-2 h-2 rounded-full" style="background:${color}"></span>
+            <h3 class="font-display text-lg">${title}</h3>
+          </div>
+          <div class="space-y-3">
+            <div class="field"><label>Principal (₹)</label><input type="number" data-cmp="${side}.principal" value="${L.principal}" /></div>
+            <div class="grid grid-cols-2 gap-3">
+              <div class="field"><label>Rate (%)</label><input type="number" step="0.05" data-cmp="${side}.annualRate" value="${L.annualRate}" /></div>
+              <div class="field"><label>Tenure (months)</label><input type="number" data-cmp="${side}.tenureMonths" value="${L.tenureMonths}" /></div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div class="field"><label>Fee (%)</label><input type="number" step="0.1" data-cmp="${side}.processingFeePct" value="${L.processingFeePct}" /></div>
+              <div class="field"><label>Loan type</label>
+                <select data-cmp="${side}.loanType">
+                  ${Object.entries(LOAN_TYPES).map(([k,v]) =>
+                    `<option value="${k}" ${L.loanType===k?'selected':''}>${v.label}</option>`).join('')}
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    /* Side-by-side cost breakdown card: Principal / Interest / Fee / Final Cost */
+    function costBreakdownCard(title, L, sum, accent) {
+      const bg = accent === 'sky' ? 'var(--sky-soft)' : 'var(--moss-soft)';
+      const fg = accent === 'sky' ? 'var(--sky)'      : 'var(--moss)';
+      const row = (k, v, strong) => `
+        <div class="flex justify-between py-1.5 ${strong?'border-t border-[var(--line)] mt-1 pt-2':''}">
+          <span class="text-sm text-[var(--ink-soft)]">${k}</span>
+          <span class="num ${strong?'font-display text-lg':''}">${v}</span>
+        </div>`;
+      return `
+        <div class="rounded-xl p-4 border" style="background:${bg}; border-color:${fg}33;">
+          <div class="flex items-center gap-2 mb-2">
+            <span class="w-2 h-2 rounded-full" style="background:${fg}"></span>
+            <h4 class="font-display text-base">${title} — cost breakdown</h4>
+          </div>
+          ${row('Principal', fmtINR2(L.principal))}
+          ${row('Interest', fmtINR2(sum.totalInterest))}
+          ${row('Processing fee', fmtINR2(sum.processingFee))}
+          ${row('Final cost', fmtINR2(sum.totalCost), true)}
+        </div>
+      `;
+    }
+
+    /* Initial render */
+    document.addEventListener('DOMContentLoaded', () => {
+      switchTab('calculator');
+    });
+  </script>
+</body>
+</html>

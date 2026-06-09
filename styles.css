@@ -1,0 +1,153 @@
+/* ============================================================
+ * LoanLens — Stylesheet
+ * Loan Transparency & EMI Tracking Platform
+ * ============================================================ */
+
+:root {
+  --ink: #0f172a;
+  --ink-soft: #334155;
+  --paper: #f6f7f4;
+  --card: #ffffff;
+  --line: #e3e6df;
+  --moss: #2f6f57;
+  --moss-soft: #e8f2ec;
+  --sky: #2b5d8a;
+  --sky-soft: #e7eff7;
+  --warn: #b45309;
+  --warn-soft: #fef3c7;
+  --danger: #b91c1c;
+  --danger-soft: #fee2e2;
+}
+
+html, body { background: var(--paper); color: var(--ink); }
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-size: 16px;
+  line-height: 1.55;
+}
+.font-display { font-family: 'Fraunces', Georgia, serif; letter-spacing: -0.01em; }
+
+/* --- Surfaces --- */
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; }
+.chip {
+  display: inline-flex; align-items: center; gap: .35rem;
+  padding: .15rem .55rem; border-radius: 999px;
+  font-size: .75rem; font-weight: 500;
+}
+
+/* --- Tabs --- */
+.tab-btn { padding: .65rem 1rem; border-radius: 10px; color: var(--ink-soft); font-weight: 500; }
+.tab-btn[aria-selected="true"] { background: var(--ink); color: white; }
+
+/* --- Focus rings --- */
+.tab-btn:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--sky);
+  outline-offset: 2px;
+}
+
+/* --- Form controls --- */
+input, select { font-size: 1rem; }
+.field label { font-size: .85rem; color: var(--ink-soft); font-weight: 500; }
+.field input, .field select {
+  width: 100%; margin-top: .35rem;
+  padding: .65rem .8rem;
+  border: 1px solid var(--line); border-radius: 10px;
+  background: white; color: var(--ink);
+}
+.field input:focus, .field select:focus { border-color: var(--sky); }
+.field .err { color: var(--danger); font-size: .8rem; margin-top: .25rem; min-height: 1rem; }
+
+/* --- Stats / KPI tiles --- */
+.stat { background: var(--paper); border: 1px solid var(--line); border-radius: 12px; padding: 1rem; }
+.stat .label { font-size: .8rem; color: var(--ink-soft); }
+.stat .value { font-family: 'Fraunces', serif; font-size: 1.5rem; font-weight: 600; }
+
+/* --- Amortization table --- */
+table.amort {
+  width: 100%; border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+table.amort th, table.amort td {
+  padding: .55rem .65rem; text-align: right;
+  border-bottom: 1px solid var(--line);
+  font-size: .9rem;
+}
+table.amort th {
+  background: var(--paper); position: sticky; top: 0;
+  color: var(--ink-soft); font-weight: 500;
+}
+table.amort td:first-child, table.amort th:first-child { text-align: left; }
+
+/* --- Alerts --- */
+.alert { border-radius: 12px; padding: 1rem 1.1rem; border: 1px solid; }
+.alert-red    { background: var(--danger-soft); border-color: #fecaca; color: #7f1d1d; }
+.alert-yellow { background: var(--warn-soft);   border-color: #fde68a; color: #78350f; }
+.alert-green  { background: var(--moss-soft);   border-color: #bcd9c9; color: #1e4a39; }
+.alert-blue   { background: var(--sky-soft);    border-color: #c5d8e9; color: #1f4263; }
+
+/* --- Accordion --- */
+details > summary { cursor: pointer; list-style: none; }
+details > summary::-webkit-details-marker { display: none; }
+.accordion summary {
+  padding: 1rem 1.1rem;
+  display: flex; justify-content: space-between; align-items: center; gap: 1rem;
+}
+.accordion[open] summary { border-bottom: 1px solid var(--line); }
+.accordion .body { padding: 1rem 1.1rem 1.2rem; color: var(--ink-soft); }
+
+/* --- EMI tracker status badges --- */
+.badge-status { font-size: .75rem; font-weight: 600; padding: .15rem .55rem; border-radius: 999px; }
+.badge-upcoming { background: #e7eff7; color: #1f4263; }
+.badge-paid     { background: #e8f2ec; color: #1e4a39; }
+.badge-overdue  { background: #fee2e2; color: #7f1d1d; }
+
+/* --- Misc --- */
+.num { font-variant-numeric: tabular-nums; }
+.scroll-shadow {
+  background:
+    linear-gradient(var(--card) 30%, rgba(255,255,255,0)),
+    linear-gradient(rgba(255,255,255,0), var(--card) 70%) 0 100%,
+    radial-gradient(50% 8px at 50% 0, rgba(15,23,42,.08), transparent),
+    radial-gradient(50% 8px at 50% 100%, rgba(15,23,42,.08), transparent) 0 100%;
+  background-repeat: no-repeat;
+  background-size: 100% 40px, 100% 40px, 100% 12px, 100% 12px;
+  background-attachment: local, local, scroll, scroll;
+}
+.pill-toggle {
+  display: inline-flex; background: var(--paper);
+  padding: 3px; border-radius: 999px; border: 1px solid var(--line);
+}
+.pill-toggle button {
+  padding: .35rem .85rem; border-radius: 999px;
+  font-size: .85rem; color: var(--ink-soft);
+}
+.pill-toggle button[aria-pressed="true"] {
+  background: white; color: var(--ink);
+  box-shadow: 0 1px 2px rgba(0,0,0,.05);
+}
+.hr-soft { height: 1px; background: var(--line); border: 0; }
+
+/* --- Skip link --- */
+.skip { position: absolute; left: -9999px; }
+.skip:focus {
+  left: 1rem; top: 1rem;
+  background: var(--ink); color: white;
+  padding: .5rem .8rem; border-radius: 8px;
+  z-index: 50;
+}
+
+/* --- Comparison highlight --- */
+.winner { background: var(--moss-soft); }
+
+/* --- Mobile tightening --- */
+@media (max-width: 640px) {
+  .stat .value { font-size: 1.25rem; }
+}
+
+/* --- Print: hide chrome --- */
+@media print {
+  .no-print { display: none !important; }
+}

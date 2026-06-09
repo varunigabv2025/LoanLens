@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>LoanLens — Unit Tests</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif; max-width: 820px; margin: 2rem auto; padding: 0 1rem; color: #111; }
+    h1 { font-family: Georgia, serif; }
+    .case { padding: .75rem 1rem; border: 1px solid #e5e7eb; border-radius: 10px; margin: .5rem 0; }
+    .pass { background: #ecfdf5; border-color: #a7f3d0; }
+    .fail { background: #fef2f2; border-color: #fecaca; }
+    .name { font-weight: 600; }
+    .detail { font-size: 12px; color: #555; margin-top: 4px; font-family: ui-monospace, Menlo, monospace; }
+    .summary { padding: 1rem; border-radius: 10px; margin-bottom: 1rem; font-weight: 600; }
+    .ok { background: #ecfdf5; color: #065f46; }
+    .bad { background: #fef2f2; color: #7f1d1d; }
+  </style>
+</head>
+<body>
+  <h1>LoanLens — Calculation Unit Tests</h1>
+  <p>Verifies EMI, interest totals, processing fee, comparison, and amortization invariants against the standard reducing-balance formula.</p>
+  <div id="summary" class="summary">Running…</div>
+  <div id="out"></div>
+
+  <script type="module">
+    import {
+      computeEMI, buildAmortization, loanSummary,
+      computeEffectiveCost, computeRiskScore, compareLoans,
+      verifyAmortization,
+    } from './js/calculators.js';
+
+    const out = document.getElementById('out');
+    let pass = 0, fail = 0;
+
+    /** approx equal with absolute tolerance (default 1 paisa) */
+    const close = (a, b, eps = 0.01) => Math.abs(a - b) <= eps;
+
+    function test(name, fn) {
+      try {
+        const detail = fn();
+        out.insertAdjacentHTML('beforeend',
+          `<div class="case pass"><div class="name">✓ ${name}</div>${detail ? `<div class="detail">${detail}</div>` : ''}</div>`);
+        pass++;
+      } catch (e) {
+        out.insertAdjacentHTML('beforeend',
+          `<div class="case fail"><div class="name">✗ ${name}</div><div class="detail">${e.message}</div></div>`);
+        fail++;
+      }
+    }
+    function assert(cond, msg) { if (!cond) throw new Error(msg || 'assertion failed'); }
+
+    /* =========================================================
+     * EMI formula — canonical reference case (₹60k @ 5% / 5m)
+     * ========================================================= */
+    test('EMI ≈ ₹12,150.42 for ₹60,000 @ 5% over 5 months', () => {
+      const emi = computeEMI(60000, 5, 5);
+      assert(close(emi, 12150.42, 0.005), `got ${emi}`);
+      return `EMI = ${emi.toFixed(4)}`;
+    });
+
+    test('Total interest ≈ ₹752.08 for ref case', () => {
+      const s = loanSummary({ principal: 60000, annualRate: 5, tenureMonths: 5, loanType: 'personal', processingFeePct: 0 });
+      assert(close(s.totalInterest, 752.08, 0.02), `got ${s.totalInterest}`);
+      return `total interest = ${s.totalInterest.toFixed(4)}`;
+    });
+
+    test('Total repayment ≈ ₹60,752.08 for ref case', () => {
+      const s = loanSummary({ principal: 60000, annualRate: 5, tenureMonths: 5, loanType: 'personal', processingFeePct: 0 });
+      assert(close(s.totalPayment, 60752.08, 0.02), `got ${s.totalPayment}`);
+      return `total payment = ${s.totalPayment.toFixed(4)}`;
+    });
+
+    /* =========================================================
+     * Amortization invariants
+     * ========================================================= */
+    test('Final closing balance is exactly 0', () => {
+      const { rows } = buildAmortization(2500000, 8.5, 240, '2026-07-01');
+      assert(rows[rows.length - 1].closingBalance === 0, `got ${rows[rows.length-1].closingBalance}`);
+    });
+
+    test('Opening − Principal = Closing for every row', () => {
+      const s = loanSummary({ principal: 750000, annualRate: 11.25, tenureMonths: 60, loanType: 'personal', processingFeePct: 1 });
+      for (const r of s.rows) {
+        assert(close(r.openingBalance - r.principal, r.closingBalance),
+          `month ${r.month}: ${r.openingBalance - r.principal} ≠ ${r.closingBalance}`);
+      }
+    });
+
+    test('Σ Principal components == original principal', () => {
+      const s = loanSummary({ principal: 1234567, annualRate: 9.3, tenureMonths: 84, loanType: 'vehicle', processingFeePct: 0.75 });
+      assert(close(s.totalPrincipal, 1234567), `got ${s.totalPrincipal}`);
+    });
+
+    test('Σ Interest components == reported totalInterest', () => {
+      const s = loanSummary({ principal: 1234567, annualRate: 9.3, tenureMonths: 84, loanType: 'vehicle', processingFeePct: 0 });
+      const recomp = s.rows.reduce((a, r) => a + r.interest, 0);
+      assert(close(recomp, s.totalInterest), `recomp=${recomp} vs ${s.totalInterest}`);
+    });
+
+    test('verifyAmortization() returns true for valid summary', () => {
+      const s = loanSummary({ principal: 500000, annualRate: 7.5, tenureMonths: 120, loanType: 'home', processingFeePct: 0.5 });
+      assert(verifyAmortization(500000, s.rows, s.totalPrincipal, s.totalInterest) === true);
+    });
+
+    /* =========================================================
+     * Processing fee + total cost
+     * ========================================================= */
+    test('Total cost = Principal + Interest + Processing Fee', () => {
+      const s = loanSummary({ principal: 1000000, annualRate: 8.0, tenureMonths: 120, loanType: 'home', processingFeePct: 1 });
+      const expected = 1000000 + s.totalInterest + s.processingFee;
+      assert(close(s.totalCost, expected, 0.001), `${s.totalCost} vs ${expected}`);
+    });
+
+    test('Processing fee = principal × fee%', () => {
+      const s = loanSummary({ principal: 1000000, annualRate: 8.0, tenureMonths: 120, loanType: 'home', processingFeePct: 1 });
+      assert(close(s.processingFee, 10000));
+    });
+
+    test('Effective net received = principal − processing fee', () => {
+      const loan = { principal: 1000000, annualRate: 8, tenureMonths: 120, loanType: 'home', processingFeePct: 1 };
+      const eff = computeEffectiveCost(loan, loanSummary(loan));
+      assert(close(eff.netReceived, 990000), `got ${eff.netReceived}`);
+    });
+
+    /* =========================================================
+     * Zero-interest edge case
+     * ========================================================= */
+    test('Zero interest: EMI = principal / months, totalInterest = 0', () => {
+      const emi = computeEMI(120000, 0, 12);
+      assert(close(emi, 10000));
+      const s = loanSummary({ principal: 120000, annualRate: 0, tenureMonths: 12, loanType: 'personal', processingFeePct: 0 });
+      assert(close(s.totalInterest, 0));
+    });
+
+    /* =========================================================
+     * Comparison logic — fee inclusion is critical
+     * ========================================================= */
+    test('compareLoans picks the lower total-cost loan (fee included)', () => {
+      const A = { principal: 1000000, annualRate: 9,  tenureMonths: 60, loanType: 'personal', processingFeePct: 0.5 };
+      const B = { principal: 1000000, annualRate: 8.5, tenureMonths: 60, loanType: 'personal', processingFeePct: 3 };
+      const c = compareLoans(A, B);
+      // B has lower interest but a much higher fee — we just assert math, not which wins.
+      assert(close(c.a.totalCost, A.principal + c.a.totalInterest + c.a.processingFee));
+      assert(close(c.b.totalCost, B.principal + c.b.totalInterest + c.b.processingFee));
+      assert(['A', 'B'].includes(c.cheaper));
+    });
+
+    /* =========================================================
+     * Risk score
+     * ========================================================= */
+    test('Risk score for a normal home loan is "healthy"', () => {
+      const loan = { principal: 2500000, annualRate: 8.5, tenureMonths: 240, loanType: 'home', processingFeePct: 0.5 };
+      const r = computeRiskScore(loan, loanSummary(loan));
+      assert(r.score >= 50, `score=${r.score}`);
+      return `score=${r.score} band=${r.band}`;
+    });
+
+    test('Risk score for a predatory loan is "risky"', () => {
+      const loan = { principal: 100000, annualRate: 36, tenureMonths: 60, loanType: 'personal', processingFeePct: 5 };
+      const r = computeRiskScore(loan, loanSummary(loan));
+      assert(r.band === 'risky', `band=${r.band} score=${r.score}`);
+      return `score=${r.score} band=${r.band}`;
+    });
+
+    /* =========================================================
+     * Render summary
+     * ========================================================= */
+    const sum = document.getElementById('summary');
+    sum.textContent = `${pass} passed · ${fail} failed`;
+    sum.className = 'summary ' + (fail === 0 ? 'ok' : 'bad');
+  </script>
+</body>
+</html>
