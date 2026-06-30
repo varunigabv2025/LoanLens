@@ -54,8 +54,7 @@ LoanLens helps users:
 * CSS
 * JavaScript
 
-###DEeploymnt
-*Vercel
+
 
 ### Version Control
 
