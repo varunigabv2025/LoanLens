@@ -10,8 +10,7 @@ The goal of LoanLens is to simplify loan management and provide users with bette
 
 ## 🚀 Live Demo
 
-https://vstmb9n6.mule.page
-
+https://loan-lens-sand.vercel.app/
 ---
 
 ## ✨ Features
@@ -55,9 +54,8 @@ LoanLens helps users:
 * CSS
 * JavaScript
 
-### Platform
-
-* MuleRun
+###DEeploymnt
+*Vercel
 
 ### Version Control
 
